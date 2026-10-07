@@ -9,6 +9,10 @@ class GameEngine:
         self.height = height
         self.block_height = 28
         self.base_width = 180
+        self.perfect_tolerance = 8.0
+        self.perfect_bonus = 2
+        self.perfect_streak_for_restore = 3
+        self.width_restore_amount = 8.0
 
         self.font_title = pygame.font.SysFont(None, 38)
         self.font_hud = pygame.font.SysFont(None, 28)
@@ -30,6 +34,8 @@ class GameEngine:
     def reset(self):
         self.score = 0
         self.game_over = False
+        self.consecutive_perfects = 0
+        self.perfect_message_until = 0
 
         base_x = (self.width - self.base_width) // 2
         base_y = self.height - 60
@@ -59,12 +65,44 @@ class GameEngine:
         overlap = right - left
         
         is_successful_drop = overlap > 0
-        
+
         if is_successful_drop:
-            trimmed_width = max(10.0, overlap)
-            new_block = Block(left, act.y, trimmed_width, self.block_height, act.color, speed=0)
+            is_perfect = (
+                abs(act.x - top_block.x) <= self.perfect_tolerance
+                and abs((act.x + act.width) - (top_block.x + top_block.width)) <= self.perfect_tolerance
+            )
+
+            if is_perfect:
+                self.consecutive_perfects += 1
+                if (
+                    self.consecutive_perfects % self.perfect_streak_for_restore == 0
+                    and top_block.width < self.base_width
+                ):
+                    restored_width = min(
+                        self.width_restore_amount,
+                        self.base_width - top_block.width,
+                    )
+                    top_block.x -= restored_width / 2
+                    top_block.width += restored_width
+
+                new_block = Block(
+                    top_block.x,
+                    act.y,
+                    top_block.width,
+                    self.block_height,
+                    act.color,
+                    speed=0,
+                )
+                self.score += 1 + self.perfect_bonus
+                self.perfect_message_until = pygame.time.get_ticks() + 1000
+            else:
+                self.consecutive_perfects = 0
+                self.perfect_message_until = 0
+                trimmed_width = max(10.0, overlap)
+                new_block = Block(left, act.y, trimmed_width, self.block_height, act.color, speed=0)
+                self.score += 1
+
             self.stack.append(new_block)
-            self.score += 1
 
             if new_block.y < 180:
                 shift_amount = self.block_height + 4
@@ -73,6 +111,8 @@ class GameEngine:
 
             self.spawn_active_block()
         else:
+            self.consecutive_perfects = 0
+            self.perfect_message_until = 0
             self.game_over = True
 
     def handle_event(self, event):
@@ -99,6 +139,10 @@ class GameEngine:
 
         score_surf = self.font_hud.render(f"Height: {self.score}", True, (255, 220, 80))
         screen.blit(score_surf, (self.width // 2 - score_surf.get_width() // 2, 54))
+
+        if pygame.time.get_ticks() < self.perfect_message_until:
+            perfect_surf = self.font_hud.render("PERFECT!", True, (80, 235, 170))
+            screen.blit(perfect_surf, (self.width // 2 - perfect_surf.get_width() // 2, 84))
 
         for b in self.stack:
             b.render(screen)
