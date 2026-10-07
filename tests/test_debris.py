@@ -101,6 +101,24 @@ class DebrisTests(unittest.TestCase):
         self.assertEqual(game.consecutive_perfects, 0)
         self.assertEqual(game.stack[-1].width, top.width - 10)
 
+    def test_task_four_background_tracks_height_and_resets(self):
+        game = self.make_game()
+        screen = pygame.Surface((800, 600))
+        game.render(screen)
+        initial_pixel = screen.get_at((5, 300))[:3]
+
+        for _ in range(12):
+            game.active_block.x = game.stack[-1].x
+            game.drop_block()
+
+        game.render(screen)
+        taller_tower_pixel = screen.get_at((5, 300))[:3]
+        self.assertNotEqual(taller_tower_pixel, initial_pixel)
+
+        game.reset()
+        game.render(screen)
+        self.assertEqual(screen.get_at((5, 300))[:3], initial_pixel)
+
 
 if __name__ == "__main__":
     unittest.main()

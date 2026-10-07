@@ -32,6 +32,35 @@ class GameEngine:
         ]
         return palette[index % len(palette)]
 
+    def get_background_gradient(self):
+        atmosphere = [
+            ((24, 27, 36), (45, 63, 77)),
+            ((25, 91, 104), (96, 142, 138)),
+            ((150, 86, 75), (237, 172, 112)),
+        ]
+        progress = min((len(self.stack) - 1) / 18, 1.0)
+        stage = progress * (len(atmosphere) - 1)
+        lower_index = min(int(stage), len(atmosphere) - 2)
+        amount = stage - lower_index
+
+        return tuple(
+            tuple(
+                round(start + (end - start) * amount)
+                for start, end in zip(atmosphere[lower_index][color_index], atmosphere[lower_index + 1][color_index])
+            )
+            for color_index in range(2)
+        )
+
+    def render_background(self, screen):
+        top_color, bottom_color = self.get_background_gradient()
+        for y in range(self.height):
+            amount = y / max(1, self.height - 1)
+            color = tuple(
+                round(top + (bottom - top) * amount)
+                for top, bottom in zip(top_color, bottom_color)
+            )
+            pygame.draw.line(screen, color, (0, y), (self.width, y))
+
     def reset(self):
         self.score = 0
         self.game_over = False
@@ -157,7 +186,7 @@ class GameEngine:
         self.debris = [piece for piece in self.debris if piece.update()]
 
     def render(self, screen):
-        screen.fill((24, 27, 36))
+        self.render_background(screen)
 
         title_surf = self.font_title.render("Skyscraper Stack", True, (245, 245, 245))
         screen.blit(title_surf, (self.width // 2 - title_surf.get_width() // 2, 16))
