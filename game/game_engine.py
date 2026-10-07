@@ -1,6 +1,7 @@
 import random
 import pygame
 from game.block import Block
+from game.debris import Debris
 
 
 class GameEngine:
@@ -36,6 +37,7 @@ class GameEngine:
         self.game_over = False
         self.consecutive_perfects = 0
         self.perfect_message_until = 0
+        self.debris = []
 
         base_x = (self.width - self.base_width) // 2
         base_y = self.height - 60
@@ -102,12 +104,34 @@ class GameEngine:
                 new_block = Block(left, act.y, trimmed_width, self.block_height, act.color, speed=0)
                 self.score += 1
 
+                left_cut = top_block.x - act.x
+                if left_cut > 0:
+                    self.debris.append(
+                        Debris(act.x, act.y, left_cut, self.block_height, act.color, -1.8, -6.0)
+                    )
+
+                right_cut = act.x + act.width - (top_block.x + top_block.width)
+                if right_cut > 0:
+                    self.debris.append(
+                        Debris(
+                            top_block.x + top_block.width,
+                            act.y,
+                            right_cut,
+                            self.block_height,
+                            act.color,
+                            1.8,
+                            6.0,
+                        )
+                    )
+
             self.stack.append(new_block)
 
             if new_block.y < 180:
                 shift_amount = self.block_height + 4
                 for b in self.stack:
                     b.y += shift_amount
+                for piece in self.debris:
+                    piece.y += shift_amount
 
             self.spawn_active_block()
         else:
@@ -130,6 +154,7 @@ class GameEngine:
     def update(self):
         if not self.game_over:
             self.active_block.update(self.width)
+        self.debris = [piece for piece in self.debris if piece.update()]
 
     def render(self, screen):
         screen.fill((24, 27, 36))
@@ -146,6 +171,9 @@ class GameEngine:
 
         for b in self.stack:
             b.render(screen)
+
+        for piece in self.debris:
+            piece.render(screen)
 
         if not self.game_over:
             self.active_block.render(screen)
